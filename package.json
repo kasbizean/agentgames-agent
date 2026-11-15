@@ -1,1 +1,20 @@
-{"name": "agent-games", "type": "module", "scripts": {"start": "node service.mjs"}}
+{
+  "name": "agent-games",
+  "type": "module",
+  "scripts": {
+    "start": "node service.mjs"
+  },
+  "version": "1.0.0",
+  "description": "zkVerify Agent Games entry (Season 01).",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kasbizean/agentgames-agent/issues"
+  },
+  "homepage": "https://github.com/kasbizean/agentgames-agent#readme",
+  "dependencies": {
+    "snarkjs": "^0.7.6"
+  }
+}

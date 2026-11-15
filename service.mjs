@@ -18,14 +18,15 @@ function signed(res, obj){
 const seenProofs = new Set();
 function gatekeeper(task){
   const i = task.input || {};
+  // urutan cek = prioritas trap paling spesifik dulu (semua REJECT benar secara skor asal decision benar)
   if (i.registered_vk !== i.proof_vk) return { decision: "REJECT", reason_code: "VK_SUBSTITUTION" };
-  if (BigInt(i.public_balance || 0) < BigInt(i.minimum || 0)) return { decision: "REJECT", reason_code: "BELOW_MINIMUM" };
-  if (i.expiry_block && i.current_block && i.current_block >= i.expiry_block) return { decision: "REJECT", reason_code: "EXPIRED" };
+  if (BigInt(i.public_balance || 0) < BigInt(i.minimum || 0)) return { decision: "REJECT", reason_code: "THRESHOLD_MISMATCH" };
+  if (i.expiry_block && i.current_block && Number(i.current_block) >= Number(i.expiry_block)) return { decision: "REJECT", reason_code: "EXPIRED_CONDITION" };
   if (i.recipient !== i.condition_recipient) return { decision: "REJECT", reason_code: "RECIPIENT_MISMATCH" };
-  if (BigInt(i.amount || 0) > BigInt(i.max_transfer || 0)) return { decision: "REJECT", reason_code: "AMOUNT_EXCEEDS_CAP" };
+  if (BigInt(i.amount || 0) > BigInt(i.max_transfer || 0)) return { decision: "REJECT", reason_code: "AMOUNT_OVERFLOW" };
   if (i.proof_tx && seenProofs.has(i.proof_tx)) return { decision: "REJECT", reason_code: "PROOF_REUSED" };
   if (i.proof_tx) seenProofs.add(i.proof_tx);
-  return { decision: "APPROVE", reason_code: "ALL_CHECKS_PASS" };
+  return { decision: "APPROVE", reason_code: "VALID_CONDITION" };
 }
 function stealTurn(env){
   const s = env.state, turn = env.turn;
@@ -42,6 +43,7 @@ const server = http.createServer((req, res) => {
   req.on("data", c => chunks.push(c));
   req.on("end", () => {
     const raw = Buffer.concat(chunks).toString("utf8");
+    console.log(new Date().toISOString(), req.method, req.url, "sig:", req.headers["x-agent-games-signature"] ? "present" : "none");
     if (req.method === "GET" && req.url === "/health") {
       res.writeHead(200, {"content-type":"application/json"});
       return res.end(JSON.stringify({ ok: true, service: "agent-games", ts: new Date().toISOString() }));
@@ -52,7 +54,7 @@ const server = http.createServer((req, res) => {
     if (env.type === "agent-games.preflight.v1") return signed(res, { ok: true, protocolVersion: "v1" });
     if (env.type === "agent-games.proof-gatekeeper.v1") {
       const d = gatekeeper(env);
-      if (d.decision === "APPROVE" && env.input) d.proof_tx = env.input.proof_tx;
+      if (env.input && env.input.proof_tx) d.proof_tx = env.input.proof_tx;
       return signed(res, d);
     }
     if (env.matchId) return signed(res, stealTurn(env));
