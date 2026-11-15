@@ -1,0 +1,1 @@
+{"name": "agent-games", "type": "module", "scripts": {"start": "node service.mjs"}}
